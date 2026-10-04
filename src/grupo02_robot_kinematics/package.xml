@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package format="3">
+
+  <name>grupo02_robot_kinematics</name>
+  <version>0.0.1</version>
+
+  <description>
+    Cinematica directa e inversa del robot KUKA KR 7 R900-3 - Grupo 2
+  </description>
+
+  <maintainer email="manuel@todo.todo">Grupo 02</maintainer>
+
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+
+  <exec_depend>python3-numpy</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+
+</package>

@@ -1,0 +1,19 @@
+# ROS 2 / colcon
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# VS Code
+.vscode/
+
+# ROS / tooling
+*.swp
+*.swo
+
+# Dependencia externa KUKA
+src/kuka_robot_descriptions/
