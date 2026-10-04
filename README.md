@@ -6,7 +6,8 @@ Implementación en ROS 2 Jazzy de la cinemática directa (FK) y cinemática inve
 
 ## Integrantes
 
-- Grupo 02
+- Adrian Pacheco Barrios
+- Manuel Joel Zapana Gutierrez
 
 ## Descripción
 
