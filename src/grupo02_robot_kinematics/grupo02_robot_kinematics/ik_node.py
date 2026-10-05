@@ -66,7 +66,7 @@ class IKNode(Node):
             -3.4906585,
             -2.0943951,
             -6.108652375
-        ])
+        ], dtype=float)
 
         self.limits_upper = np.array([
              3.2288591125,
@@ -75,7 +75,7 @@ class IKNode(Node):
              3.4906585,
              2.0943951,
              6.108652375
-        ])
+        ], dtype=float)
 
         # ==========================================================
         # CONFIGURACION ACTUAL DEL ROBOT
@@ -88,9 +88,9 @@ class IKNode(Node):
             0.0,
             math.pi / 4,
             0.0
-        ])
+        ], dtype=float)
 
-        # Indica si ya tenemos una solución publicada
+        # Indica si ya tenemos una solucion IK publicada
         self.publish_ik_solution = False
 
         # ==========================================================
@@ -111,7 +111,7 @@ class IKNode(Node):
         )
 
     # ==============================================================
-    # MATRIZ DH
+    # MATRIZ DH ESTANDAR
     # ==============================================================
 
     @staticmethod
@@ -124,64 +124,118 @@ class IKNode(Node):
         sa = math.sin(alpha)
 
         return np.array([
-            [ct, -st * ca,  st * sa, a * ct],
-            [st,  ct * ca, -ct * sa, a * st],
-            [0,       sa,       ca,      d],
-            [0,        0,        0,      1]
+            [
+                ct,
+                -st * ca,
+                st * sa,
+                a * ct
+            ],
+            [
+                st,
+                ct * ca,
+                -ct * sa,
+                a * st
+            ],
+            [
+                0.0,
+                sa,
+                ca,
+                d
+            ],
+            [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ]
         ], dtype=float)
 
     # ==============================================================
-    # CINEMATICA DIRECTA
+    # CINEMATICA DIRECTA POSICIONAL
+    #
+    # ESTA ES LA MISMA FK VALIDADA EN fk_node.py
+    #
+    # La IK solamente necesita la posicion del efector final.
     # ==============================================================
 
     def forward_kinematics_pos(self, q):
+
+        # ----------------------------------------------------------
+        # Transformacion fija:
+        #
+        # base_link -> frame DH inicial
+        # ----------------------------------------------------------
+
+        T_base = np.array([
+            [1.0,  0.0,  0.0, 0.0],
+            [0.0, -1.0,  0.0, 0.0],
+            [0.0,  0.0, -1.0, 0.0],
+            [0.0,  0.0,  0.0, 1.0]
+        ], dtype=float)
+
+        # ----------------------------------------------------------
+        # Parametros DH
+        #
+        #             theta       d          a          alpha
+        #
+        # A1          q1         -0.34200   0.05000      +pi/2
+        # A2          q2          0.09305   0.41000       0
+        # A3          q3-pi/2    -0.09305   0.04500      +pi/2
+        # A4          q4         -0.44000   0            -pi/2
+        # A5          q5          0         0             pi/2
+        # A6          q6+pi      -0.07700   0             pi
+        # ----------------------------------------------------------
 
         dh_params = [
 
             (
                 q[0],
-                0.400,
-                0.025,
-                -math.pi / 2
+                -0.34200,
+                0.05000,
+                math.pi / 2
             ),
 
             (
-                q[1] - math.pi / 2,
-                0.000,
-                0.455,
+                q[1],
+                0.09305,
+                0.41000,
                 0.0
             ),
 
             (
-                q[2],
-                0.000,
-                0.035,
+                q[2] - math.pi / 2,
+                -0.09305,
+                0.04500,
                 math.pi / 2
             ),
 
             (
                 q[3],
-                0.420,
-                0.000,
+                -0.44000,
+                0.00000,
                 -math.pi / 2
             ),
 
             (
                 q[4],
-                0.000,
-                0.000,
+                0.00000,
+                0.00000,
                 math.pi / 2
             ),
 
             (
-                q[5],
-                0.080,
-                0.000,
-                0.0
+                q[5] + math.pi,
+                -0.07700,
+                0.00000,
+                math.pi
             )
         ]
 
-        T = np.eye(4)
+        # ----------------------------------------------------------
+        # T = T_base * A1 * A2 * A3 * A4 * A5 * A6
+        # ----------------------------------------------------------
+
+        T = T_base.copy()
 
         for theta, d, a, alpha in dh_params:
 
@@ -195,7 +249,7 @@ class IKNode(Node):
         return T[0:3, 3]
 
     # ==============================================================
-    # JACOBIANO POSICIONAL
+    # JACOBIANO POSICIONAL NUMERICO
     # ==============================================================
 
     def compute_positional_jacobian(
@@ -204,13 +258,16 @@ class IKNode(Node):
         delta=1e-6
     ):
 
-        J = np.zeros((3, 6))
+        J = np.zeros((3, 6), dtype=float)
 
+        # Posicion actual
         p0 = self.forward_kinematics_pos(q)
 
+        # Derivada numerica para cada articulacion
         for i in range(6):
 
             q_step = q.copy()
+
             q_step[i] += delta
 
             p_step = self.forward_kinematics_pos(
@@ -237,11 +294,18 @@ class IKNode(Node):
 
         q = q_seed.copy()
 
+        # ----------------------------------------------------------
         # Factor de amortiguamiento.
-        # Ayuda cuando el Jacobiano está cerca de una singularidad.
+        #
+        # Ayuda cuando el Jacobiano esta cerca de una singularidad.
+        # ----------------------------------------------------------
+
         damping = 0.02
 
-        # Tamaño máximo de un paso articular.
+        # ----------------------------------------------------------
+        # Tamaño maximo de un paso articular.
+        # ----------------------------------------------------------
+
         max_step = 0.20
 
         for i in range(max_iter):
@@ -250,15 +314,22 @@ class IKNode(Node):
             # FK
             # ------------------------------------------------------
 
-            p_current = self.forward_kinematics_pos(q)
+            p_current = self.forward_kinematics_pos(
+                q
+            )
 
             # ------------------------------------------------------
-            # ERROR
+            # ERROR CARTESIANO
             # ------------------------------------------------------
 
-            error = target_pos - p_current
+            error = (
+                target_pos
+                - p_current
+            )
 
-            err_norm = np.linalg.norm(error)
+            err_norm = np.linalg.norm(
+                error
+            )
 
             # ------------------------------------------------------
             # CONVERGENCIA
@@ -277,12 +348,15 @@ class IKNode(Node):
             # JACOBIANO
             # ------------------------------------------------------
 
-            J = self.compute_positional_jacobian(q)
+            J = self.compute_positional_jacobian(
+                q
+            )
 
             # ------------------------------------------------------
             # PSEUDOINVERSA AMORTIGUADA
             #
-            # dq = J^T (J J^T + λ²I)^-1 e
+            # dq =
+            # J^T (J J^T + lambda^2 I)^-1 e
             # ------------------------------------------------------
 
             identity = np.eye(3)
@@ -293,13 +367,16 @@ class IKNode(Node):
                     J.T
                     @ np.linalg.inv(
                         J @ J.T
-                        + (damping ** 2) * identity
+                        + (damping ** 2)
+                        * identity
                     )
                 )
 
             except np.linalg.LinAlgError:
 
-                J_damped = np.linalg.pinv(J)
+                J_damped = np.linalg.pinv(
+                    J
+                )
 
             # ------------------------------------------------------
             # INCREMENTO ARTICULAR
@@ -326,13 +403,13 @@ class IKNode(Node):
                 )
 
             # ------------------------------------------------------
-            # ACTUALIZAR
+            # ACTUALIZAR CONFIGURACION
             # ------------------------------------------------------
 
             q = q + dq
 
             # ------------------------------------------------------
-            # RESPETAR LIMITES
+            # RESPETAR LIMITES ARTICULARES
             # ------------------------------------------------------
 
             q = np.clip(
@@ -342,10 +419,12 @@ class IKNode(Node):
             )
 
         # ==========================================================
-        # RESULTADO FINAL SI NO CONVERGIÓ
+        # RESULTADO FINAL SI NO CONVERGIO
         # ==========================================================
 
-        p_final = self.forward_kinematics_pos(q)
+        p_final = self.forward_kinematics_pos(
+            q
+        )
 
         err_final = np.linalg.norm(
             target_pos - p_final
@@ -386,7 +465,7 @@ class IKNode(Node):
                 0.0,
                 math.pi / 4,
                 0.0
-            ])
+            ], dtype=float)
         )
 
         # ----------------------------------------------------------
@@ -401,7 +480,7 @@ class IKNode(Node):
                 0.0,
                 0.5,
                 0.0
-            ])
+            ], dtype=float)
         )
 
         # ----------------------------------------------------------
@@ -416,7 +495,7 @@ class IKNode(Node):
                 0.0,
                 0.5,
                 0.0
-            ])
+            ], dtype=float)
         )
 
         # ----------------------------------------------------------
@@ -431,14 +510,14 @@ class IKNode(Node):
                 -1.2,
                 0.3,
                 -2.8
-            ])
+            ], dtype=float)
         )
 
         # ----------------------------------------------------------
-        # 6. SOLUCION CONOCIDA PARA EL OBJETIVO 0.55,0,0.50
+        # 6. SEMILLA ADICIONAL
         #
-        # Sirve además como una semilla válida para esa región
-        # del espacio de trabajo.
+        # Se conserva como una configuracion inicial alternativa.
+        # No se considera una solucion exacta del nuevo modelo.
         # ----------------------------------------------------------
 
         seeds.append(
@@ -449,7 +528,7 @@ class IKNode(Node):
                 -1.279,
                 0.283,
                 -2.779
-            ])
+            ], dtype=float)
         )
 
         # ----------------------------------------------------------
@@ -466,7 +545,9 @@ class IKNode(Node):
                 self.limits_upper
             )
 
-            valid_seeds.append(seed)
+            valid_seeds.append(
+                seed
+            )
 
         return valid_seeds
 
@@ -496,11 +577,14 @@ class IKNode(Node):
 
         for index, seed in enumerate(seeds):
 
-            q_sol, iterations, error, converged = (
-                self.solve_ik_from_seed(
-                    target_pos,
-                    seed
-                )
+            (
+                q_sol,
+                iterations,
+                error,
+                converged
+            ) = self.solve_ik_from_seed(
+                target_pos,
+                seed
             )
 
             self.get_logger().info(
@@ -517,9 +601,16 @@ class IKNode(Node):
             if error < best_error:
 
                 best_error = error
+
                 best_q = q_sol.copy()
-                best_iterations = iterations
-                best_converged = converged
+
+                best_iterations = (
+                    iterations
+                )
+
+                best_converged = (
+                    converged
+                )
 
         return (
             best_q,
@@ -534,8 +625,8 @@ class IKNode(Node):
 
     def joint_state_callback(self, msg):
 
-        # Mientras no tengamos una solución IK publicada,
-        # usamos la posición real del robot como semilla.
+        # Mientras no tengamos una solucion IK publicada,
+        # usamos la posicion real del robot como semilla.
 
         if not self.publish_ik_solution:
 
@@ -554,7 +645,7 @@ class IKNode(Node):
                 self.q_current = np.array([
                     name_to_pos[joint]
                     for joint in self.joint_names
-                ])
+                ], dtype=float)
 
     # ==============================================================
     # CALLBACK DEL TARGET
@@ -566,7 +657,7 @@ class IKNode(Node):
             msg.x,
             msg.y,
             msg.z
-        ])
+        ], dtype=float)
 
         self.get_logger().info(
             f'\n>>> Objetivo recibido en /target: '
@@ -619,7 +710,8 @@ class IKNode(Node):
 
         self.get_logger().info(
 
-            f'\n================ RESULTADO CINEMÁTICA INVERSA ================'
+            f'\n================ RESULTADO '
+            f'CINEMÁTICA INVERSA ================'
 
             f'\nEstado: {status_str}'
 
@@ -638,12 +730,14 @@ class IKNode(Node):
         )
 
         # ==========================================================
-        # PUBLICAR SOLO SI CONVERGIÓ
+        # PUBLICAR SOLO SI CONVERGIO
         # ==========================================================
 
         if converged:
 
-            self.q_current = q_sol.copy()
+            self.q_current = (
+                q_sol.copy()
+            )
 
             self.publish_ik_solution = True
 
@@ -670,7 +764,9 @@ class IKNode(Node):
                 .to_msg()
             )
 
-            joint_msg.name = self.joint_names
+            joint_msg.name = (
+                self.joint_names
+            )
 
             joint_msg.position = (
                 self.q_current.tolist()
@@ -715,5 +811,4 @@ def main(args=None):
 # ==============================================================
 
 if __name__ == '__main__':
-
     main()
