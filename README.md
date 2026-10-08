@@ -2,7 +2,7 @@
 
 Proyecto de Robótica - IMT-342
 
-Implementación en ROS 2 Jazzy de la cinemática directa (FK) y cinemática inversa numérica de posición (IK) para el robot industrial KUKA KR 7 R900-3.
+Implementación en ROS 2 Jazzy de la cinemática directa (FK) y cinemática inversa (IK) para el robot industrial KUKA KR 7 R900-3.
 
 ## Integrantes
 
@@ -11,157 +11,185 @@ Implementación en ROS 2 Jazzy de la cinemática directa (FK) y cinemática inve
 
 ## Descripción
 
-El proyecto permite visualizar el robot KUKA KR 7 R900-3 en RViz2 y ejecutar:
+El proyecto permite visualizar el robot KUKA KR 7 R900-3 en RViz2 y realizar:
 
 - Cinemática directa (Forward Kinematics, FK).
-- Cinemática inversa numérica de posición (Inverse Kinematics, IK).
-- Cálculo de posición y orientación del efector final `tool0`.
-- Jacobiano posicional numérico mediante diferencias finitas.
-- Pseudoinversa amortiguada.
-- Límites articulares.
-- Múltiples configuraciones iniciales o semillas.
+- Cinemática inversa (Inverse Kinematics, IK).
 - Publicación y recepción de estados articulares mediante `/joint_states`.
-- Recepción de objetivos cartesianos mediante `/target`.
-- Validación mediante FK, TF y RViz2.
+- Verificación de las soluciones de cinemática inversa mediante cinemática directa.
+- Pruebas con diferentes objetivos cartesianos.
 
 La implementación está desarrollada como paquetes ROS 2 en Python.
 
-La cinemática inversa implementada resuelve únicamente posición cartesiana `(x, y, z)`.
+---
+
+# Estructura del workspace y ejecución en ROS 2
+
+El proyecto se organizó en el workspace:
+
+```text
+$HOME/grupo2_kuka
+```
+
+El paquete de cinemática se encuentra en:
+
+```text
+src/grupo02_robot_kinematics/
+```
+
+dentro del módulo:
+
+```text
+grupo02_robot_kinematics/
+```
+
+Los archivos principales son:
+
+```text
+fk_node.py
+ik_node.py
+__init__.py
+```
 
 ---
 
-# Requisitos
+# Obtención e instalación desde cero
 
-El proyecto fue desarrollado y probado con:
+Para reproducir el proyecto en una computadora nueva se requiere Ubuntu 24.04, ROS 2 Jazzy y Git.
 
-- Ubuntu 24.04
-- ROS 2 Jazzy
-- Python 3
-- Git
-- Colcon
-- NumPy
-- RViz2
-- Xacro
-- ros2_control
-- Joint State Publisher GUI
-- Robot State Publisher
-- Descripción KUKA `kuka_agilus_support`
+Si alguno de estos componentes no está instalado, debe instalarse antes de continuar.
+
+El código del proyecto se obtiene directamente desde el repositorio de GitHub.
 
 ---
 
-# 1. Comprobación inicial
+## 1. Comprobación inicial
 
-Verificar la versión de Ubuntu:
+Primero se verifica la versión de Ubuntu:
 
 ```bash
 lsb_release -a
 ```
 
-Debe utilizarse Ubuntu 24.04.
+La computadora debe utilizar Ubuntu 24.04.
 
-Verificar la distribución de ROS 2:
+A continuación se comprueba la distribución de ROS 2:
 
 ```bash
 echo $ROS_DISTRO
 ```
 
-Debe aparecer:
+Debe corresponder a ROS 2 Jazzy.
 
-```text
-jazzy
-```
-
-Verificar Git:
+Finalmente se comprueba Git:
 
 ```bash
 git --version
 ```
 
----
-
-# 2. Clonar el proyecto
-
-Desde el directorio personal:
-
-```bash
-cd "$HOME"
-```
-
-Clonar el repositorio:
-
-```bash
-git clone https://github.com/ManuelZapanaGutierrez/grupo2_kuka.git
-```
-
-Entrar al workspace:
-
-```bash
-cd "$HOME/grupo2_kuka"
-```
+Si ROS 2 Jazzy o Git no están instalados, deben instalarse antes de continuar.
 
 ---
 
-# 3. Comprobar dependencias
+## 2. Comprobación de dependencias KUKA
 
-Verificar si ROS 2 Control está disponible:
+Antes de descargar componentes adicionales se comprueba si el sistema ya dispone de la interfaz de hardware utilizada por la descripción del robot:
 
 ```bash
 ros2 pkg list | grep hardware_interface
 ```
 
-Si no aparece ningún resultado:
+Si no aparece `hardware_interface`, se instala ROS 2 Control:
 
 ```bash
 sudo apt update
+```
+
+```bash
 sudo apt install ros-jazzy-ros2-control
 ```
 
-Volver a comprobar:
+Después se puede comprobar nuevamente:
 
 ```bash
 ros2 pkg list | grep hardware_interface
 ```
 
----
-
-# 4. Comprobar la descripción del robot KUKA
-
-Ejecutar:
+También se comprueba si la descripción KUKA requerida ya está disponible:
 
 ```bash
 ros2 pkg list | grep kuka_agilus_support
 ```
 
-Si aparece:
+Si aparece `kuka_agilus_support`, no es necesario descargar otra copia de la descripción KUKA.
 
-```text
-kuka_agilus_support
+Si no aparece, se debe descargar la versión utilizada en este proyecto.
+
+---
+
+## 3. Descarga del proyecto
+
+La carpeta del proyecto se crea a partir del repositorio.
+
+No es necesario copiar manualmente los archivos.
+
+Primero:
+
+```bash
+cd "$HOME"
 ```
 
-no es necesario descargar otra copia.
+Después:
 
-Si no aparece, descargar la descripción dentro del workspace:
+```bash
+git clone https://github.com/ManuelZapanaGutierrez/grupo2_kuka.git
+```
+
+Luego:
 
 ```bash
 cd "$HOME/grupo2_kuka"
+```
+
+La estructura puede comprobarse con:
+
+```bash
+ls
+```
+
+y los archivos principales de cinemática con:
+
+```bash
+ls src/grupo02_robot_kinematics/grupo02_robot_kinematics
+```
+
+Deben encontrarse, entre otros:
+
+```text
+fk_node.py
+ik_node.py
+__init__.py
+```
+
+---
+
+## 4. Descarga de la descripción KUKA
+
+Si `kuka_agilus_support` no estaba disponible en el sistema, se descarga el repositorio de descripciones KUKA dentro del workspace:
+
+```bash
 git clone https://github.com/kroshu/kuka_robot_descriptions.git src/kuka_robot_descriptions
 ```
 
-Seleccionar exactamente la versión utilizada en este proyecto:
+A continuación se selecciona exactamente la versión utilizada por el proyecto:
 
 ```bash
 git -C src/kuka_robot_descriptions checkout f0202b2
 ```
 
-El mensaje `detached HEAD` no representa un error.
+El mensaje de Git indicando un estado `detached HEAD` no representa un error.
 
-Comprobar el commit:
-
-```bash
-git -C src/kuka_robot_descriptions rev-parse --short HEAD
-```
-
-Debe aparecer:
+Lo importante es que la terminal indique que el repositorio quedó en el commit:
 
 ```text
 f0202b2
@@ -169,39 +197,37 @@ f0202b2
 
 ---
 
-# 5. Compilar el workspace
+## 5. Compilación del workspace
 
-Entrar al proyecto:
+Con las dependencias preparadas se compila todo el workspace:
 
 ```bash
 cd "$HOME/grupo2_kuka"
 ```
 
-Compilar:
-
 ```bash
 colcon build --symlink-install
 ```
 
-La compilación debe terminar sin paquetes marcados como `Failed`.
+La compilación debe finalizar sin paquetes marcados como:
 
-Cargar el workspace:
+```text
+Failed
+```
+
+Una vez terminada la compilación, se carga el workspace:
 
 ```bash
 source install/setup.bash
 ```
 
-Cargar el entorno del proyecto:
+y se carga el entorno del proyecto:
 
 ```bash
 source entorno.sh
 ```
 
----
-
-# 6. Comprobar que los paquetes están disponibles
-
-Ejecutar:
+Para comprobar que los paquetes del proyecto están disponibles:
 
 ```bash
 ros2 pkg list | grep grupo02
@@ -214,60 +240,61 @@ grupo02_kuka_kr7_bringup
 grupo02_robot_kinematics
 ```
 
-Comprobar también:
+También se comprueba la descripción KUKA:
 
 ```bash
 ros2 pkg list | grep kuka_agilus_support
 ```
 
-Debe aparecer:
+Si aparecen los paquetes anteriores y `kuka_agilus_support`, el workspace está preparado para ejecutar el proyecto.
 
-```text
-kuka_agilus_support
+---
+
+## 6. Carga del entorno en nuevas terminales
+
+Cada nueva terminal utilizada para trabajar con el proyecto debe cargar nuevamente el entorno:
+
+```bash
+cd "$HOME/grupo2_kuka"
+```
+
+```bash
+source entorno.sh
 ```
 
 ---
 
-# 7. Carga del entorno en nuevas terminales
+# Secuencia completa de arranque
 
-Cada terminal nueva utilizada para trabajar con el proyecto debe ejecutar:
+Una vez instalado y compilado el workspace, se puede ejecutar la práctica desde el directorio del proyecto.
 
-```bash
-cd "$HOME/grupo2_kuka"
-source entorno.sh
-```
-
-Si fuera necesario, también puede cargarse:
-
-```bash
-source install/setup.bash
-```
-
----
-
-# 8. Abrir el robot en RViz2
-
-Ejecutar:
+Primero se abre el modelo del robot en RViz2:
 
 ```bash
 cd "$HOME/grupo2_kuka"
+```
+
+```bash
 source entorno.sh
+```
+
+```bash
 ros2 launch grupo02_kuka_kr7_bringup display.launch.py
 ```
 
-Debe aparecer:
+El lanzamiento inicia la visualización del robot y permite utilizar el Joint State Publisher GUI para generar configuraciones articulares.
 
-- El robot KUKA KR 7 R900-3.
-- RViz2.
-- Joint State Publisher GUI.
-- Los seis joints del robot.
-- Los frames correspondientes.
+Antes de comenzar una prueba de IK se debe cerrar el GUI, ya que tanto el GUI como `ik_node.py` pueden publicar sobre:
+
+```text
+/joint_states
+```
 
 ---
 
-# 9. Comprobar la comunicación ROS 2
+## Comprobación inicial del sistema ROS 2
 
-Con el robot ejecutándose:
+Como comprobación inicial se recomienda ejecutar:
 
 ```bash
 ros2 node list
@@ -277,482 +304,235 @@ ros2 node list
 ros2 topic list
 ```
 
-Comprobar `/joint_states`:
-
 ```bash
 ros2 topic echo /joint_states --once
 ```
-
-Comprobar la descripción del robot:
 
 ```bash
 ros2 topic echo /robot_description --once
 ```
 
+```bash
+ros2 run tf2_ros tf2_echo base_link tool0
+```
+
 ---
 
-# 10. Cinemática Directa - FK
+## Compilación únicamente del paquete de cinemática
 
-Mantener abierto RViz2 y el Joint State Publisher GUI.
-
-En otra terminal:
+Para compilar el paquete se utilizó:
 
 ```bash
 cd "$HOME/grupo2_kuka"
+```
+
+```bash
 source entorno.sh
+```
+
+```bash
+colcon build --packages-select \
+grupo02_robot_kinematics --symlink-install
+```
+
+---
+
+## Ejecución de la cinemática directa
+
+Para ejecutar FK:
+
+```bash
+cd "$HOME/grupo2_kuka"
+```
+
+```bash
+source entorno.sh
+```
+
+```bash
 ros2 run grupo02_robot_kinematics fk_node
 ```
 
-Debe aparecer un mensaje similar a:
+---
 
-```text
-FK Node inicializado. Esperando /joint_states...
+## Ejecución de la cinemática inversa
+
+Para ejecutar IK:
+
+```bash
+cd "$HOME/grupo2_kuka"
 ```
 
-Mover una o varias articulaciones desde Joint State Publisher GUI.
-
-El nodo mostrará valores similares a:
-
-```text
-q: [q1, q2, q3, q4, q5, q6]
-
-Posición [m]:
-x = ...
-y = ...
-z = ...
-
-Orientación (quat):
-...
+```bash
+source entorno.sh
 ```
 
-El flujo es:
-
-```text
-/joint_states
-      ↓
-   fk_node
-      ↓
-modelo DH
-      ↓
-posición + orientación de tool0
+```bash
+ros2 run grupo02_robot_kinematics ik_node
 ```
 
 ---
 
-# 11. Validar FK mediante TF
+## Envío de un objetivo cartesiano
+
+Un objetivo cartesiano se envía mediante:
+
+```bash
+ros2 topic pub /target geometry_msgs/msg/Point \
+"{x: 0.400, y: 0.200, z: 0.700}" --once
+```
+
+Durante las pruebas de FK se utilizó el Joint State Publisher GUI para generar configuraciones articulares.
+
+Para las pruebas de IK se cerró dicho GUI antes de publicar la solución desde `ik_node.py`, evitando dos publishers simultáneos sobre:
+
+```text
+/joint_states
+```
+
+El flujo de validación fue:
+
+```text
+/target
+    ↓
+ik_node
+    ↓
+/joint_states
+    ↓
+robot_state_publisher
+    ↓
+RViz2
+```
+
+---
+
+# Procedimiento reproducible de las pruebas
+
+## Prueba de FK
+
+Manteniendo abierto RViz2 y el Joint State Publisher GUI, se mueve una o varias articulaciones hasta obtener una configuración de prueba.
+
+En otra terminal se ejecuta:
+
+```bash
+cd "$HOME/grupo2_kuka"
+```
+
+```bash
+source entorno.sh
+```
+
+```bash
+ros2 run grupo02_robot_kinematics fk_node
+```
+
+La posición calculada por FK se compara con la transformación de ROS 2:
+
+```bash
+ros2 run tf2_ros tf2_echo base_link tool0
+```
+
+---
+
+## Prueba de IK
+
+Se cierra el Joint State Publisher GUI, se ejecuta `ik_node.py` y se publica el objetivo mediante `/target`.
+
+Por ejemplo:
+
+```bash
+cd "$HOME/grupo2_kuka"
+```
+
+```bash
+source entorno.sh
+```
+
+```bash
+ros2 run grupo02_robot_kinematics ik_node
+```
 
 En otra terminal:
 
 ```bash
 cd "$HOME/grupo2_kuka"
-source entorno.sh
-timeout 3 ros2 run tf2_ros tf2_echo base_link tool0
 ```
 
-TF mostrará aproximadamente:
+```bash
+source entorno.sh
+```
+
+```bash
+ros2 topic pub /target geometry_msgs/msg/Point \
+"{x: 0.400, y: 0.200, z: 0.700}" --once
+```
+
+La solución se publica en:
 
 ```text
-Translation: [x, y, z]
-Rotation: ...
+/joint_states
 ```
 
-La posición calculada por FK debe coincidir aproximadamente con la transformación obtenida mediante TF.
+y se visualiza mediante `robot_state_publisher` y RViz2.
 
-La validación utilizada es:
+Para cada objetivo se verifica posteriormente la posición alcanzada mediante FK y se comprueba que el error sea inferior a la tolerancia de:
+
+```text
+10^-3 m
+```
+
+---
+
+# Validación y resultados
+
+La validación del modelo se realizó mediante dos procedimientos complementarios.
+
+Para la cinemática directa:
 
 ```text
 q → FK → p_FK ≈ p_TF
 ```
 
----
+donde `p_FK` corresponde a la posición calculada mediante el modelo DH implementado y `p_TF` a la transformación obtenida a partir del modelo URDF/Xacro y del estado articular publicado en ROS 2.
 
-# 12. Cinemática Inversa - IK
-
-Antes de ejecutar IK debe cerrarse el **Joint State Publisher GUI**.
-
-Esto evita tener dos nodos publicando simultáneamente sobre:
+Para la cinemática inversa:
 
 ```text
-/joint_states
+p_d → IK → q* → FK → p(q*) ≈ p_d
 ```
 
-No es necesario cerrar RViz2.
+La primera comparación permite comprobar la consistencia entre el modelo matemático desarrollado y el modelo utilizado por ROS 2.
 
-En otra terminal:
-
-```bash
-cd "$HOME/grupo2_kuka"
-source entorno.sh
-ros2 run grupo02_robot_kinematics ik_node
-```
-
-Debe aparecer algo similar a:
-
-```text
-IK Node listo. Enviar objetivo cartesiano a /target...
-IK robusta con multiples semillas habilitada.
-```
+La segunda permite verificar que la solución articular calculada por la cinemática inversa realmente reproduce el objetivo cartesiano solicitado.
 
 ---
 
-# 13. Enviar un objetivo cartesiano
+# Integración y repositorio
 
-En otra terminal:
-
-```bash
-cd "$HOME/grupo2_kuka"
-source entorno.sh
-```
-
-Enviar:
-
-```bash
-ros2 topic pub --once /target geometry_msgs/msg/Point "{x: 0.400, y: 0.200, z: 0.700}"
-```
-
-El nodo IK debe recibir aproximadamente:
+El repositorio utilizado para el proyecto es:
 
 ```text
-x = 0.400
-y = 0.200
-z = 0.700
+GitHub: ManuelZapanaGutierrez/grupo2_kuka
 ```
 
-y buscar una configuración articular:
-
-```text
-q* = [q1, q2, q3, q4, q5, q6]
-```
-
----
-
-# 14. Criterio de convergencia
-
-La solución de IK se acepta cuando:
-
-```text
-||pd - p(q*)|| < 0.001 m
-```
-
-Es decir, cuando el error cartesiano es menor a:
-
-```text
-1 mm
-```
-
-El algoritmo utiliza:
-
-- Jacobiano posicional numérico.
-- Diferencias finitas.
-- Pseudoinversa amortiguada.
-- Límites articulares.
-- Límite de incremento.
-- Seis configuraciones iniciales.
-- Máximo de 300 iteraciones por semilla.
-
----
-
-# 15. Ejemplo de IK
-
-Objetivo:
-
-```text
-pd = [0.400, 0.200, 0.700]
-```
-
-Una solución obtenida durante las pruebas fue aproximadamente:
-
-```text
-q* =
-[2.8035,
- -1.5730,
- -1.5713,
- -1.4685,
- -0.8199,
- -2.7790]
-```
-
-Posición alcanzada:
-
-```text
-[0.3996, 0.1999, 0.7000]
-```
-
-Error:
-
-```text
-0.00041 m
-```
-
-Por tanto:
-
-```text
-0.00041 m < 0.001 m
-```
-
-y la solución converge correctamente.
-
----
-
-# 16. Validación IK → FK
-
-La solución encontrada por IK se publica mediante:
-
-```text
-/joint_states
-```
-
-El nodo FK puede utilizar nuevamente esa configuración.
-
-La validación es:
-
-```text
-posición deseada
-      ↓
-      IK
-      ↓
-      q*
-      ↓
-      FK
-      ↓
-posición calculada
-```
-
-Se verifica:
-
-```text
-p(q*) ≈ pd
-```
-
----
-
-# 17. Flujo completo de ROS 2
-
-```text
-/target
-   ↓
-ik_node
-   ↓
-q*
-   ↓
-/joint_states
-   ↓
-robot_state_publisher
-   ↓
-TF
-   ↓
-RViz2
-```
-
-El nodo FK también recibe:
-
-```text
-/joint_states
-```
-
-y calcula la posición mediante el modelo DH implementado.
-
----
-
-# 18. Prueba completa recomendada
-
-## Terminal 1 - RViz2
-
-```bash
-cd "$HOME/grupo2_kuka"
-source entorno.sh
-ros2 launch grupo02_kuka_kr7_bringup display.launch.py
-```
-
-## Terminal 2 - FK
-
-```bash
-cd "$HOME/grupo2_kuka"
-source entorno.sh
-ros2 run grupo02_robot_kinematics fk_node
-```
-
-Mover los joints desde Joint State Publisher GUI.
-
-## Terminal 3 - TF
-
-```bash
-cd "$HOME/grupo2_kuka"
-source entorno.sh
-timeout 3 ros2 run tf2_ros tf2_echo base_link tool0
-```
-
-Comparar FK con TF.
-
-Cerrar Joint State Publisher GUI.
-
-## Terminal 4 - IK
-
-```bash
-cd "$HOME/grupo2_kuka"
-source entorno.sh
-ros2 run grupo02_robot_kinematics ik_node
-```
-
-## Terminal 5 - Objetivo
-
-```bash
-cd "$HOME/grupo2_kuka"
-source entorno.sh
-ros2 topic pub --once /target geometry_msgs/msg/Point "{x: 0.400, y: 0.200, z: 0.700}"
-```
-
-Comprobar:
-
-- Convergencia.
-- Vector `q*`.
-- Número de iteraciones.
-- Error final.
-- Movimiento del robot en RViz2.
-
-Finalmente:
-
-```bash
-timeout 3 ros2 run tf2_ros tf2_echo base_link tool0
-```
-
-La transformación debe coincidir aproximadamente con el objetivo enviado.
-
----
-
-# 19. Pruebas realizadas
-
-Se realizaron tres configuraciones de FK y tres objetivos diferentes de IK.
-
-Las pruebas mostraron errores de posición inferiores a 1 mm.
-
-Para la validación de FK se compararon los resultados del modelo DH con las transformaciones TF publicadas por ROS 2.
-
-Para IK, cada solución `q*` se verificó nuevamente mediante FK.
-
----
-
-# 20. Problemas frecuentes
-
-## `Package 'grupo02_kuka_kr7_bringup' not found`
-
-Ejecutar:
-
-```bash
-cd "$HOME/grupo2_kuka"
-source install/setup.bash
-source entorno.sh
-```
-
-Si continúa:
-
-```bash
-colcon build --symlink-install
-source install/setup.bash
-source entorno.sh
-```
-
----
-
-## `Package 'kuka_agilus_support' not found`
-
-Comprobar:
-
-```bash
-ros2 pkg list | grep kuka_agilus_support
-```
-
-Si no existe:
-
-```bash
-git clone https://github.com/kroshu/kuka_robot_descriptions.git src/kuka_robot_descriptions
-git -C src/kuka_robot_descriptions checkout f0202b2
-colcon build --symlink-install
-```
-
----
-
-## Falta `hardware_interface`
-
-Comprobar:
-
-```bash
-ros2 pkg list | grep hardware_interface
-```
-
-Si no aparece:
-
-```bash
-sudo apt update
-sudo apt install ros-jazzy-ros2-control
-```
-
-Luego:
-
-```bash
-colcon build --symlink-install
-```
-
----
-
-## El robot aparece incorrectamente en RViz2
-
-Comprobar:
-
-```bash
-ros2 pkg list | grep kuka_agilus_support
-```
-
-y recompilar:
-
-```bash
-cd "$HOME/grupo2_kuka"
-colcon build --symlink-install
-source install/setup.bash
-source entorno.sh
-```
-
----
-
-# 21. Estructura principal del proyecto
-
-```text
-grupo2_kuka/
-├── README.md
-├── entorno.sh
-├── instalar.sh
-├── dependencies.repos
-├── docs/
-└── src/
-    ├── grupo02_kuka_kr7_bringup/
-    │   ├── launch/
-    │   │   └── display.launch.py
-    │   ├── CMakeLists.txt
-    │   └── package.xml
-    │
-    └── grupo02_robot_kinematics/
-        ├── grupo02_robot_kinematics/
-        │   ├── __init__.py
-        │   ├── fk_node.py
-        │   └── ik_node.py
-        ├── resource/
-        ├── package.xml
-        ├── setup.cfg
-        └── setup.py
-```
-
----
-
-# Repositorio
-
-GitHub:
-
-```text
-ManuelZapanaGutierrez/grupo2_kuka
-```
-
-Rama principal:
+La rama de trabajo es:
 
 ```text
 main
 ```
+
+El estado final del proyecto quedó sincronizado con el repositorio antes de la entrega.
+
+El repositorio contiene el paquete de cinemática, los archivos necesarios del workspace y el entorno utilizado para ejecutar la práctica.
+
+El repositorio incluye además los archivos:
+
+```text
+entorno.sh
+instalar.sh
+dependencies.repos
+```
+
+El archivo `README.md` contiene las instrucciones necesarias para clonar, preparar dependencias, compilar y ejecutar el proyecto, así como los comandos para ejecutar FK, IK y las pruebas de validación.
+
+El script `instalar.sh` permite automatizar parte del proceso de preparación inicial del workspace, mientras que el README conserva también el procedimiento manual para facilitar el diagnóstico y la reproducción en otra computadora.
